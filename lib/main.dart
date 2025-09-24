@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DnD Notes Companion',
       theme: _buildAppTheme(),
-      home: const HomePage(), // 🔥 ahora apunta directo a home_page.dart
+      home: const HomePage(),
       debugShowCheckedModeBanner: false,
     );
   }
