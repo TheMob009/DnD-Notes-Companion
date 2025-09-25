@@ -10,7 +10,6 @@ class HomePage extends StatelessWidget {
     final campaigns = [
       {"name": "La Maldición de Strahd", "date": "12/03/2024", "icon": Icons.shield},
       {"name": "Reinos Olvidados", "date": "05/05/2024", "icon": Icons.map},
-      {"name": "Mazmorras Caseras", "date": "20/07/2024", "icon": Icons.home_work},
     ];
 
     return Scaffold(

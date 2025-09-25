@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'pages/home_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized(); // buena práctica con splash (idk)
   runApp(const MyApp());
 }
 
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DnD Notes Companion',
       theme: _buildAppTheme(),
-      home: const HomePage(),
+      home: const HomePage(), // el splash nativo se muestra solo antes
       debugShowCheckedModeBanner: false,
     );
   }
