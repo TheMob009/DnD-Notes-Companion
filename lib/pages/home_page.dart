@@ -49,18 +49,18 @@ class HomePage extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateCampaignPage(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text("Nueva Campaña"),
-      ),
+      floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateCampaignPage(),
+              ),
+            );
+          },
+          tooltip: "Crear Campaña",
+          child: const Icon(Icons.add),
+      )
     );
   }
 }

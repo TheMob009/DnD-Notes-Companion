@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class CreateNotePage extends StatefulWidget {
   const CreateNotePage({super.key});
@@ -24,6 +26,18 @@ class _CreateNotePageState extends State<CreateNotePage> {
     "Misiones",
     "Personalizada",
   ];
+
+  final List<File> _images = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _images.add(File(picked.path));
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,9 +103,38 @@ class _CreateNotePageState extends State<CreateNotePage> {
                 prefixIcon: Icon(Icons.notes),
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Botón para añadir imagen
+            ElevatedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.image),
+              label: const Text("Añadir Imagen"),
+            ),
+            const SizedBox(height: 12),
+
+            // Vista previa de imágenes
+            if (_images.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _images
+                    .map(
+                      (file) => ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          file,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
             const SizedBox(height: 40),
 
-            // Botón de guardar
+            // Boton Guardar
             ElevatedButton.icon(
               onPressed: () {
                 // Guardar la nota luego

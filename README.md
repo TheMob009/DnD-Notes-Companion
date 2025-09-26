@@ -25,6 +25,10 @@ Este aplicacion corresponde a una aplicacion destinada a asistir en tomar notas 
 
 **Cliente:** Flutter, AndroidSDK
 
+## Enlace a la presentacion
+
+https://youtu.be/rzs11Rfsfao
+
 ```mermaid
 graph TB
     A[Pantalla Inicio<br/>Lista de Campañas] --> B[➕ Nueva Campaña]

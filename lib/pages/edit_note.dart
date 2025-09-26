@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class EditNotePage extends StatefulWidget {
   final String noteTitle;
   final String noteContent;
   final String noteCategory;
+  final List<String> noteImages; // 👈 rutas de imágenes existentes
 
   const EditNotePage({
     super.key,
     required this.noteTitle,
     required this.noteContent,
     required this.noteCategory,
+    this.noteImages = const [], // por defecto vacío
   });
 
   @override
@@ -33,18 +37,33 @@ class _EditNotePageState extends State<EditNotePage> {
     "Personalizada",
   ];
 
+  final List<File> _images = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _images.add(File(picked.path));
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.noteTitle);
     _contentController = TextEditingController(text: widget.noteContent);
 
-    // Si la categoría está en las predefinidas, la seleccionamos
+    // Cargar imágenes iniciales (convertimos String -> File si existen rutas)
+    for (final path in widget.noteImages) {
+      _images.add(File(path));
+    }
+
     if (predefinedCategories.contains(widget.noteCategory)) {
       _selectedCategory = widget.noteCategory;
       _customCategoryController = TextEditingController();
     } else {
-      // Si es personalizada, activamos esa opción
       _selectedCategory = "Personalizada";
       _customCategoryController =
           TextEditingController(text: widget.noteCategory);
@@ -115,9 +134,38 @@ class _EditNotePageState extends State<EditNotePage> {
                 prefixIcon: Icon(Icons.notes),
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Botón para añadir imagen
+            ElevatedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.image),
+              label: const Text("Añadir Imagen"),
+            ),
+            const SizedBox(height: 12),
+
+            // Vista previa de imágenes
+            if (_images.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _images
+                    .map(
+                      (file) => ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          file,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
             const SizedBox(height: 40),
 
-            // Boton de guardar cambios
+            // Botón de guardar cambios
             ElevatedButton.icon(
               onPressed: () {
                 // Aquí luego guardaremos los cambios
