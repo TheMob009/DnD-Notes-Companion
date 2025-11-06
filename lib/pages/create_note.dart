@@ -12,12 +12,11 @@ class CreateNotePage extends StatefulWidget {
 class _CreateNotePageState extends State<CreateNotePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _customCategoryController =
-      TextEditingController();
+  final TextEditingController _customCategoryController = TextEditingController();
 
   String? _selectedCategory;
 
-  final List<String> predefinedCategories = [
+  final List<String> predefinedCategories = const [
     "Historia/Sesión",
     "Personajes",
     "Ciudades",
@@ -33,18 +32,27 @@ class _CreateNotePageState extends State<CreateNotePage> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() {
-        _images.add(File(picked.path));
-      });
+      setState(() => _images.add(File(picked.path)));
     }
   }
 
   @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _customCategoryController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: "Volver",
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("Crear Nota"),
@@ -53,7 +61,6 @@ class _CreateNotePageState extends State<CreateNotePage> {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            // Nombre de la nota
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -63,7 +70,6 @@ class _CreateNotePageState extends State<CreateNotePage> {
             ),
             const SizedBox(height: 20),
 
-            // Categoría
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
                 labelText: "Categoría",
@@ -71,18 +77,12 @@ class _CreateNotePageState extends State<CreateNotePage> {
               ),
               value: _selectedCategory,
               items: predefinedCategories
-                  .map((cat) =>
-                      DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value;
-                });
-              },
+              onChanged: (value) => setState(() => _selectedCategory = value),
             ),
             const SizedBox(height: 12),
 
-            // Campo para categoría personalizada
             if (_selectedCategory == "Personalizada")
               TextField(
                 controller: _customCategoryController,
@@ -93,7 +93,6 @@ class _CreateNotePageState extends State<CreateNotePage> {
               ),
             const SizedBox(height: 20),
 
-            // Contenido de la nota
             TextField(
               controller: _contentController,
               maxLines: 8,
@@ -105,7 +104,6 @@ class _CreateNotePageState extends State<CreateNotePage> {
             ),
             const SizedBox(height: 20),
 
-            // Botón para añadir imagen
             ElevatedButton.icon(
               onPressed: _pickImage,
               icon: const Icon(Icons.image),
@@ -113,7 +111,6 @@ class _CreateNotePageState extends State<CreateNotePage> {
             ),
             const SizedBox(height: 12),
 
-            // Vista previa de imágenes
             if (_images.isNotEmpty)
               Wrap(
                 spacing: 8,
@@ -124,8 +121,8 @@ class _CreateNotePageState extends State<CreateNotePage> {
                         borderRadius: BorderRadius.circular(8),
                         child: Image.file(
                           file,
-                          width: 100,
-                          height: 100,
+                          width: 120, // ✅ thumbnail fix
+                          height: 120,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -134,10 +131,15 @@ class _CreateNotePageState extends State<CreateNotePage> {
               ),
             const SizedBox(height: 40),
 
-            // Boton Guardar
             ElevatedButton.icon(
               onPressed: () {
-                // Guardar la nota luego
+                // Pequeña validación mock
+                if ((_titleController.text).trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Agrega un título a la nota.")),
+                  );
+                  return;
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Nota creada (mock)")),
                 );
@@ -147,6 +149,8 @@ class _CreateNotePageState extends State<CreateNotePage> {
               label: const Text("Guardar Nota"),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
+                foregroundColor: scheme.onPrimary,
+                backgroundColor: scheme.primary,
               ),
             ),
           ],

@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Lab 2</string>
+		<string>DnD Notes Companion</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>lab_2</string>
+		<string>dnd_notes_companion</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -28,6 +28,7 @@
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
 		<string>Main</string>
+		<!-- Orientaciones soportadas -->
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
@@ -41,6 +42,12 @@
 			<string>UIInterfaceOrientationLandscapeLeft</string>
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
+		<!-- 🧩 Permisos para acceder a fotos y cámara -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>La app necesita acceder a tu galería para adjuntar imágenes a las notas.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>La app necesita acceder a tu cámara para tomar fotos y adjuntarlas a las notas.</string>
+		<!-- 🧠 Requerido por Flutter -->
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>

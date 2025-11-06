@@ -6,14 +6,14 @@ class EditNotePage extends StatefulWidget {
   final String noteTitle;
   final String noteContent;
   final String noteCategory;
-  final List<String> noteImages; // 👈 rutas de imágenes existentes
+  final List<String> noteImages;
 
   const EditNotePage({
     super.key,
     required this.noteTitle,
     required this.noteContent,
     required this.noteCategory,
-    this.noteImages = const [], // por defecto vacío
+    this.noteImages = const [],
   });
 
   @override
@@ -27,7 +27,7 @@ class _EditNotePageState extends State<EditNotePage> {
 
   String? _selectedCategory;
 
-  final List<String> predefinedCategories = [
+  final List<String> predefinedCategories = const [
     "Historia/Sesión",
     "Personajes",
     "Ciudades",
@@ -43,9 +43,7 @@ class _EditNotePageState extends State<EditNotePage> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() {
-        _images.add(File(picked.path));
-      });
+      setState(() => _images.add(File(picked.path)));
     }
   }
 
@@ -55,7 +53,6 @@ class _EditNotePageState extends State<EditNotePage> {
     _titleController = TextEditingController(text: widget.noteTitle);
     _contentController = TextEditingController(text: widget.noteContent);
 
-    // Cargar imágenes iniciales (convertimos String -> File si existen rutas)
     for (final path in widget.noteImages) {
       _images.add(File(path));
     }
@@ -65,17 +62,27 @@ class _EditNotePageState extends State<EditNotePage> {
       _customCategoryController = TextEditingController();
     } else {
       _selectedCategory = "Personalizada";
-      _customCategoryController =
-          TextEditingController(text: widget.noteCategory);
+      _customCategoryController = TextEditingController(text: widget.noteCategory);
     }
   }
 
   @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _customCategoryController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: "Volver",
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("Editar Nota"),
@@ -84,7 +91,6 @@ class _EditNotePageState extends State<EditNotePage> {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            // Nombre de la nota
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -94,7 +100,6 @@ class _EditNotePageState extends State<EditNotePage> {
             ),
             const SizedBox(height: 20),
 
-            // Categoría
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
                 labelText: "Categoría",
@@ -102,18 +107,12 @@ class _EditNotePageState extends State<EditNotePage> {
               ),
               value: _selectedCategory,
               items: predefinedCategories
-                  .map((cat) =>
-                      DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value;
-                });
-              },
+              onChanged: (value) => setState(() => _selectedCategory = value),
             ),
             const SizedBox(height: 12),
 
-            // Campo para categoría personalizada
             if (_selectedCategory == "Personalizada")
               TextField(
                 controller: _customCategoryController,
@@ -124,7 +123,6 @@ class _EditNotePageState extends State<EditNotePage> {
               ),
             const SizedBox(height: 20),
 
-            // Contenido de la nota
             TextField(
               controller: _contentController,
               maxLines: 8,
@@ -136,7 +134,6 @@ class _EditNotePageState extends State<EditNotePage> {
             ),
             const SizedBox(height: 20),
 
-            // Botón para añadir imagen
             ElevatedButton.icon(
               onPressed: _pickImage,
               icon: const Icon(Icons.image),
@@ -144,7 +141,6 @@ class _EditNotePageState extends State<EditNotePage> {
             ),
             const SizedBox(height: 12),
 
-            // Vista previa de imágenes
             if (_images.isNotEmpty)
               Wrap(
                 spacing: 8,
@@ -155,8 +151,8 @@ class _EditNotePageState extends State<EditNotePage> {
                         borderRadius: BorderRadius.circular(8),
                         child: Image.file(
                           file,
-                          width: 100,
-                          height: 100,
+                          width: 120, // ✅ thumbnail fix
+                          height: 120,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -165,10 +161,8 @@ class _EditNotePageState extends State<EditNotePage> {
               ),
             const SizedBox(height: 40),
 
-            // Botón de guardar cambios
             ElevatedButton.icon(
               onPressed: () {
-                // Aquí luego guardaremos los cambios
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Cambios guardados (mock)")),
                 );
@@ -178,6 +172,8 @@ class _EditNotePageState extends State<EditNotePage> {
               label: const Text("Guardar cambios"),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
+                foregroundColor: scheme.onPrimary,
+                backgroundColor: scheme.primary,
               ),
             ),
           ],

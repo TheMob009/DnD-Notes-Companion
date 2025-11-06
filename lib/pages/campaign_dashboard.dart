@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'create_category.dart';
-import 'create_note.dart';
 import 'note_detail.dart';
+import 'create_note.dart';
+import 'create_category.dart';
 
 class CampaignDashboardPage extends StatefulWidget {
   final String campaignName;
@@ -76,11 +76,15 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
   };
 
   @override
+  void dispose() {
+    _searchController.dispose(); // ✅ liberar controlador
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Todas las notas combinadas en una sola lista (necesario para links en NoteDetailPage)
     final allNotes = notesByCategory.values.expand((list) => list).toList();
 
-    // Filtrar por título
     final filteredNotes = _searchQuery.isEmpty
         ? allNotes
         : allNotes
@@ -94,6 +98,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          tooltip: "Volver",
         ),
         title: _isSearching
             ? TextField(
@@ -103,11 +108,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
                   hintText: "Buscar notas...",
                   border: InputBorder.none,
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _searchQuery = value),
               )
             : Row(
                 children: [
@@ -143,9 +144,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateCategoryPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const CreateCategoryPage()),
               );
             },
           ),
@@ -158,9 +157,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const CreateNotePage(),
-            ),
+            MaterialPageRoute(builder: (_) => const CreateNotePage()),
           );
         },
         tooltip: "Crear Nota",
@@ -169,10 +166,12 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
     );
   }
 
-  // Vista normal con categorías
   Widget _buildCategories(
       List<Map<String, dynamic>> allNotes, BuildContext context) {
-    final orderedCategories = ["Favoritos", ...notesByCategory.keys.where((c) => c != "Favoritos")];
+    final orderedCategories = [
+      "Favoritos",
+      ...notesByCategory.keys.where((c) => c != "Favoritos")
+    ];
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -195,7 +194,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => NoteDetailPage(
+                    builder: (_) => NoteDetailPage(
                       noteTitle: note["title"] as String,
                       noteDescription: note["description"] as String,
                       noteIcon: note["icon"] as IconData,
@@ -211,7 +210,6 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
     );
   }
 
-  // Vista de resultados de búsqueda
   Widget _buildSearchResults(
       List<Map<String, dynamic>> notes,
       List<Map<String, dynamic>> allNotes,
@@ -221,7 +219,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
     }
     return ListView.builder(
       itemCount: notes.length,
-      itemBuilder: (context, index) {
+      itemBuilder: (_, index) {
         final note = notes[index];
         return ListTile(
           leading: Icon(note["icon"] as IconData),
@@ -231,7 +229,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => NoteDetailPage(
+                builder: (_) => NoteDetailPage(
                   noteTitle: note["title"] as String,
                   noteDescription: note["description"] as String,
                   noteIcon: note["icon"] as IconData,

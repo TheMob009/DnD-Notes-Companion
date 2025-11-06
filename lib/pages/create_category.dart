@@ -23,12 +23,21 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
   ];
 
   @override
+  void dispose() {
+    _nameController.dispose(); // ✅ liberar controlador
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          tooltip: "Volver",
         ),
         title: const Text("Crear Categoría"),
       ),
@@ -36,7 +45,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            // Nombre de la categoría
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -46,7 +54,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
             ),
             const SizedBox(height: 20),
 
-            // Selección de icono
             const Text(
               "Selecciona un icono:",
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -58,22 +65,16 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
               children: availableIcons.map((icon) {
                 final isSelected = _selectedIcon == icon;
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedIcon = icon;
-                    });
-                  },
+                  onTap: () => setState(() => _selectedIcon = icon),
                   child: CircleAvatar(
                     radius: 28,
                     backgroundColor: isSelected
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.surfaceContainerHigh,
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest, // ✅ nombre correcto
                     child: Icon(
                       icon,
                       size: 28,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
                     ),
                   ),
                 );
@@ -81,10 +82,9 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
             ),
             const SizedBox(height: 40),
 
-            // Botón de guardar
             ElevatedButton.icon(
               onPressed: () {
-                // Guardar categoriaa
+                // mock save
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Categoría creada (mock)")),
                 );

@@ -106,7 +106,6 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
               ),
             ),
             const SizedBox(height: 20),
-
             // Título Imágenes
             const Text(
               "Imágenes",
@@ -127,8 +126,9 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
                           borderRadius: BorderRadius.circular(8),
                           child: Image.file(
                             File(path),
-                            width: double.infinity,
-                            fit: BoxFit.fitWidth,
+                            width: 120,   // ✅ evitar double.infinity en Wrap
+                            height: 120,
+                            fit: BoxFit.cover,
                           ),
                         ))
                     .toList(),
