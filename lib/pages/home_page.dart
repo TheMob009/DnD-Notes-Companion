@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'campaign_dashboard.dart';
 import 'create_campaign.dart';
+import 'preferences_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -16,6 +17,18 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Campañas"),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: "Preferencias",
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PreferencesPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: ListView.builder(
         itemCount: campaigns.length,
@@ -38,7 +51,7 @@ class HomePage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CampaignDashboardPage(
+                    builder: (_) => CampaignDashboardPage(
                       campaignName: campaign["name"]! as String,
                       campaignIcon: campaign["icon"] as IconData,
                     ),
@@ -50,17 +63,15 @@ class HomePage extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CreateCampaignPage(),
-              ),
-            );
-          },
-          tooltip: "Crear Campaña",
-          child: const Icon(Icons.add),
-      )
+        tooltip: "Crear Campaña",
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateCampaignPage()),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

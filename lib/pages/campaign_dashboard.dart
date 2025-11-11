@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'note_detail.dart';
 import 'create_note.dart';
 import 'create_category.dart';
+import '../services/settings_controller.dart';
+import 'preferences_page.dart';
 
 class CampaignDashboardPage extends StatefulWidget {
   final String campaignName;
@@ -77,28 +81,37 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
 
   @override
   void dispose() {
-    _searchController.dispose(); // ✅ liberar controlador
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+
+    // Combinar todas las notas para búsqueda y navegación
     final allNotes = notesByCategory.values.expand((list) => list).toList();
 
-    final filteredNotes = _searchQuery.isEmpty
-        ? allNotes
-        : allNotes
-            .where((note) => (note["title"] as String)
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()))
-            .toList();
+    bool matches(Map<String, dynamic> n, String q) {
+      if (q.isEmpty) return true;
+      final title = (n["title"] as String).toLowerCase();
+      if (settings.searchInDescription) {
+        final desc = (n["description"] as String).toLowerCase();
+        return title.contains(q) || desc.contains(q);
+      }
+      return title.contains(q);
+    }
+
+    final q = _searchQuery.toLowerCase();
+    final filteredNotes = allNotes.where((n) => matches(n, q)).toList();
+    final sortedFiltered = _sortList(filteredNotes, settings.sort);
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
           tooltip: "Volver",
+          onPressed: () => Navigator.pop(context),
         ),
         title: _isSearching
             ? TextField(
@@ -139,6 +152,16 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: "Preferencias",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PreferencesPage()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: "Crear Categoría",
             onPressed: () {
@@ -151,23 +174,42 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
         ],
       ),
       body: _isSearching
-          ? _buildSearchResults(filteredNotes, allNotes, context)
-          : _buildCategories(allNotes, context),
+          ? _buildSearchResults(sortedFiltered, allNotes, context)
+          : _buildCategories(allNotes, context, settings.sort),
       floatingActionButton: FloatingActionButton(
+        tooltip: "Crear Nota",
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CreateNotePage()),
           );
         },
-        tooltip: "Crear Nota",
         child: const Icon(Icons.note_add),
       ),
     );
   }
 
+  // Orden alfabético según preferencia
+  List<Map<String, dynamic>> _sortList(
+    List<Map<String, dynamic>> list,
+    SortOrder order,
+  ) {
+    final copy = [...list];
+    copy.sort((a, b) {
+      final at = (a["title"] as String);
+      final bt = (b["title"] as String);
+      final cmp = at.toLowerCase().compareTo(bt.toLowerCase());
+      return order == SortOrder.titleAsc ? cmp : -cmp;
+    });
+    return copy;
+  }
+
+  // Vista con categorías, respetando orden de notas
   Widget _buildCategories(
-      List<Map<String, dynamic>> allNotes, BuildContext context) {
+    List<Map<String, dynamic>> allNotes,
+    BuildContext context,
+    SortOrder order,
+  ) {
     final orderedCategories = [
       "Favoritos",
       ...notesByCategory.keys.where((c) => c != "Favoritos")
@@ -176,7 +218,7 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: orderedCategories.map((category) {
-        final notes = notesByCategory[category] ?? [];
+        final notes = _sortList(notesByCategory[category] ?? [], order);
         final isFavorites = category == "Favoritos";
 
         return ExpansionTile(
@@ -210,10 +252,12 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
     );
   }
 
+  // Resultados de búsqueda, ordenados
   Widget _buildSearchResults(
-      List<Map<String, dynamic>> notes,
-      List<Map<String, dynamic>> allNotes,
-      BuildContext context) {
+    List<Map<String, dynamic>> notes,
+    List<Map<String, dynamic>> allNotes,
+    BuildContext context,
+  ) {
     if (notes.isEmpty) {
       return const Center(child: Text("No se encontraron notas."));
     }

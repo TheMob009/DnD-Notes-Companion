@@ -1,6 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'edit_note.dart';
 
 class NoteDetailPage extends StatefulWidget {
@@ -8,8 +13,6 @@ class NoteDetailPage extends StatefulWidget {
   final String noteDescription;
   final IconData noteIcon;
   final List<String> imagePaths;
-
-  /// Lista de todas las notas para reconocer vínculos en la descripción
   final List<Map<String, dynamic>> allNotes;
 
   const NoteDetailPage({
@@ -26,14 +29,25 @@ class NoteDetailPage extends StatefulWidget {
 }
 
 class _NoteDetailPageState extends State<NoteDetailPage> {
-  bool _isFavorite = false; // 👈 mock favorito
+  bool _isFavorite = false;
+  late List<String> _imagePaths;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _imagePaths = List.from(widget.imagePaths);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: "Volver",
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -47,21 +61,30 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
         ),
         actions: [
           IconButton(
+            tooltip: "Tomar foto",
+            icon: const Icon(Icons.camera_alt),
+            onPressed: _takePhoto,
+          ),
+          IconButton(
+            tooltip: "Compartir como PDF",
+            icon: const Icon(Icons.ios_share),
+            onPressed: _shareAsPdf,
+          ),
+          IconButton(
             tooltip: _isFavorite ? "Quitar de favoritos" : "Añadir a favoritos",
             icon: Icon(
               _isFavorite ? Icons.star : Icons.star_border,
               color: _isFavorite ? Colors.amber : null,
             ),
             onPressed: () {
-              setState(() {
-                _isFavorite = !_isFavorite;
-              });
-
+              setState(() => _isFavorite = !_isFavorite);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isFavorite
-                      ? "Añadido a Favoritos (mock)"
-                      : "Eliminado de Favoritos (mock)"),
+                  content: Text(
+                    _isFavorite
+                        ? "Añadido a Favoritos (mock)"
+                        : "Eliminado de Favoritos (mock)",
+                  ),
                   duration: const Duration(seconds: 1),
                 ),
               );
@@ -71,66 +94,53 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
-            // Card de descripción
-            SizedBox(
-              width: double.infinity,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 150),
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          "Descripción:",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildLinkedDescription(context),
-                      ],
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Descripción:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    _buildLinkedDescription(context),
+                  ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            // Título Imágenes
             const Text(
               "Imágenes",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
-
-            // Galería o mensaje vacío
-            if (widget.imagePaths.isNotEmpty)
+            if (_imagePaths.isNotEmpty)
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: widget.imagePaths
-                    .map((path) => ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(path),
-                            width: 120,   // ✅ evitar double.infinity en Wrap
-                            height: 120,
-                            fit: BoxFit.cover,
-                          ),
-                        ))
+                children: _imagePaths
+                    .map(
+                      (path) => ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(path),
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
                     .toList(),
               )
             else
@@ -140,7 +150,7 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
                     Icon(
                       Icons.image_not_supported,
                       size: 80,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: scheme.onSurfaceVariant,
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -161,13 +171,84 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
     );
   }
 
-  /// Construye la descripción convirtiendo los títulos de otras notas en enlaces.
+  /// Permite tomar una foto con la cámara y añadirla a las imágenes de la nota.
+  Future<void> _takePhoto() async {
+    try {
+      final picked = await _picker.pickImage(source: ImageSource.camera);
+      if (picked != null) {
+        setState(() {
+          _imagePaths.add(picked.path);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Foto añadida correctamente")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al tomar foto: $e")),
+      );
+    }
+  }
+
+  /// Genera y comparte la nota como PDF.
+  Future<void> _shareAsPdf() async {
+    try {
+      final doc = pw.Document();
+
+      final imageWidgets = <pw.Widget>[];
+      for (final path in _imagePaths) {
+        final f = File(path);
+        if (await f.exists()) {
+          final bytes = await f.readAsBytes();
+          imageWidgets.add(
+            pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 8),
+              child: pw.ClipRRect(
+                horizontalRadius: 8,
+                verticalRadius: 8,
+                child: pw.Image(pw.MemoryImage(bytes),
+                    fit: pw.BoxFit.cover, width: double.infinity),
+              ),
+            ),
+          );
+        }
+      }
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          build: (context) => [
+            pw.Text(widget.noteTitle,
+                style: pw.TextStyle(
+                    fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 12),
+            pw.Text(widget.noteDescription),
+            if (imageWidgets.isNotEmpty) pw.SizedBox(height: 16),
+            if (imageWidgets.isNotEmpty)
+              pw.Text('Imágenes:',
+                  style: pw.TextStyle(
+                      fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            if (imageWidgets.isNotEmpty) pw.SizedBox(height: 8),
+            ...imageWidgets,
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      await Printing.sharePdf(
+          bytes: bytes, filename: "${widget.noteTitle}.pdf");
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo generar el PDF: $e')),
+      );
+    }
+  }
+
   Widget _buildLinkedDescription(BuildContext context) {
     if (widget.allNotes.isEmpty) {
-      return Text(
-        widget.noteDescription,
-        style: Theme.of(context).textTheme.bodyLarge,
-      );
+      return Text(widget.noteDescription,
+          style: Theme.of(context).textTheme.bodyLarge);
     }
 
     final baseStyle = Theme.of(context).textTheme.bodyLarge;
@@ -185,7 +266,6 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
 
     final text = widget.noteDescription;
     final lower = text.toLowerCase();
-
     int pos = 0;
     final spans = <TextSpan>[];
 
@@ -196,12 +276,10 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
 
       for (final title in titles) {
         final idx = lower.indexOf(title.toLowerCase(), pos);
-        if (idx >= 0) {
-          if (_hasWordBoundaries(lower, idx, idx + title.length)) {
-            if (earliestIdx == -1 || idx < earliestIdx) {
-              earliestIdx = idx;
-              matchedTitle = title;
-            }
+        if (idx >= 0 && _hasWordBoundaries(lower, idx, idx + title.length)) {
+          if (earliestIdx == -1 || idx < earliestIdx) {
+            earliestIdx = idx;
+            matchedTitle = title;
           }
         }
       }
@@ -219,32 +297,31 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
         (n) => (n["title"] as String).toLowerCase() == matchedTitle!.toLowerCase(),
         orElse: () => {},
       );
+
       if (matchedNote.isEmpty) {
         spans.add(TextSpan(text: matchedTitle));
         pos = earliestIdx + matchedTitle.length;
         continue;
       }
 
-      spans.add(
-        TextSpan(
-          text: matchedTitle,
-          style: linkStyle,
-          recognizer: TapGestureRecognizer()
-            ..onTap = () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NoteDetailPage(
-                    noteTitle: matchedNote!["title"] as String,
-                    noteDescription: matchedNote["description"] as String,
-                    noteIcon: matchedNote["icon"] as IconData,
-                    allNotes: widget.allNotes,
-                  ),
+      spans.add(TextSpan(
+        text: matchedTitle,
+        style: linkStyle,
+        recognizer: TapGestureRecognizer()
+          ..onTap = () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NoteDetailPage(
+                  noteTitle: matchedNote!["title"] as String,
+                  noteDescription: matchedNote["description"] as String,
+                  noteIcon: matchedNote["icon"] as IconData,
+                  allNotes: widget.allNotes,
                 ),
-              );
-            },
-        ),
-      );
+              ),
+            );
+          },
+      ));
 
       pos = earliestIdx + matchedTitle.length;
     }
@@ -252,13 +329,9 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
     return RichText(text: TextSpan(style: baseStyle, children: spans));
   }
 
-  // Funcion que evita encontrar titulos dentro de una palabra.
-  // Ej: Encontrar el titulo "Nos" dentro de la palabra "Nosotros"
   bool _hasWordBoundaries(String s, int start, int end) {
     bool isAlphaNum(String ch) =>
-        // Se crea una expresion regular que permite identificar los siguientes caracteres.
         RegExp(r'[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ]').hasMatch(ch);
-
     final beforeOk = start == 0 || !isAlphaNum(s[start - 1]);
     final afterOk = end >= s.length || !isAlphaNum(s[end]);
     return beforeOk && afterOk;
@@ -292,7 +365,8 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text("Eliminar", style: TextStyle(color: Colors.red)),
+              title: const Text("Eliminar",
+                  style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirmation(context);

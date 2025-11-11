@@ -37,14 +37,52 @@ class _EditNotePageState extends State<EditNotePage> {
     "Personalizada",
   ];
 
-  final List<File> _images = [];
+  late List<File> _images;
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => _images.add(File(picked.path)));
+  Future<void> _addImage(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(source: source);
+      if (picked != null) {
+        setState(() => _images.add(File(picked.path)));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("No se pudo obtener la imagen: $e")),
+      );
     }
+  }
+
+  void _showImageSource() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text('Elegir de galería'),
+              onTap: () {
+                Navigator.pop(context);
+                _addImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tomar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _addImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -53,9 +91,7 @@ class _EditNotePageState extends State<EditNotePage> {
     _titleController = TextEditingController(text: widget.noteTitle);
     _contentController = TextEditingController(text: widget.noteContent);
 
-    for (final path in widget.noteImages) {
-      _images.add(File(path));
-    }
+    _images = widget.noteImages.map((p) => File(p)).toList();
 
     if (predefinedCategories.contains(widget.noteCategory)) {
       _selectedCategory = widget.noteCategory;
@@ -86,6 +122,13 @@ class _EditNotePageState extends State<EditNotePage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("Editar Nota"),
+        actions: [
+          IconButton(
+            tooltip: "Añadir imagen",
+            icon: const Icon(Icons.add_a_photo),
+            onPressed: _showImageSource,
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -134,10 +177,24 @@ class _EditNotePageState extends State<EditNotePage> {
             ),
             const SizedBox(height: 20),
 
-            ElevatedButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.image),
-              label: const Text("Añadir Imagen"),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo),
+                    label: const Text("Galería"),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text("Cámara"),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -151,7 +208,7 @@ class _EditNotePageState extends State<EditNotePage> {
                         borderRadius: BorderRadius.circular(8),
                         child: Image.file(
                           file,
-                          width: 120, // ✅ thumbnail fix
+                          width: 120,
                           height: 120,
                           fit: BoxFit.cover,
                         ),
@@ -159,7 +216,7 @@ class _EditNotePageState extends State<EditNotePage> {
                     )
                     .toList(),
               ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
 
             ElevatedButton.icon(
               onPressed: () {

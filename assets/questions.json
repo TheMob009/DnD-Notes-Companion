@@ -1,0 +1,23 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating",
+      "title": "¿Qué tan útil te resulta la app para registrar tus sesiones?",
+      "min": 1,
+      "max": 5
+    },
+    {
+      "id": "q2",
+      "type": "rating",
+      "title": "Evalúa la facilidad de uso de la interfaz",
+      "min": 1,
+      "max": 5
+    },
+    {
+      "id": "q3",
+      "type": "text",
+      "title": "¿Qué mejorarías o agregarías?"
+    }
+  ]
+}
