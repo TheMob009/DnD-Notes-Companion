@@ -1,26 +1,25 @@
+import 'dart:async';
+import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
-  static const _dbName = 'dnd_notes.db';
-  static const _dbVersion = 1;
-
-  static Database? _instance;
+  static Database? _db;
 
   static Future<Database> getInstance() async {
-    if (_instance != null) return _instance!;
+    if (_db != null) return _db!;
     final dbPath = await getDatabasesPath();
-    final path = '$dbPath/$_dbName';
+    final path = p.join(dbPath, 'dnd_notes_companion.db');
 
-    _instance = await openDatabase(
+    _db = await openDatabase(
       path,
-      version: _dbVersion,
+      version: 1,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (db, version) async {
-        // campañas
+        // campaigns
         await db.execute('''
-          CREATE TABLE campaigns(
+          CREATE TABLE campaigns (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             edition TEXT,
@@ -29,21 +28,22 @@ class AppDatabase {
           )
         ''');
 
-        // categorías
+        // categories
         await db.execute('''
-          CREATE TABLE categories(
+          CREATE TABLE categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campaign_id INTEGER NOT NULL,
             name TEXT NOT NULL,
             icon_codepoint INTEGER,
             is_builtin INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY(campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+            FOREIGN KEY(campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+            UNIQUE(campaign_id, name)
           )
         ''');
 
-        // notas
+        // notes
         await db.execute('''
-          CREATE TABLE notes(
+          CREATE TABLE notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campaign_id INTEGER NOT NULL,
             category_id INTEGER,
@@ -57,21 +57,25 @@ class AppDatabase {
           )
         ''');
 
-        // imágenes de nota (ruta local)
+        // note_images
         await db.execute('''
-          CREATE TABLE note_images(
+          CREATE TABLE note_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             note_id INTEGER NOT NULL,
             path TEXT NOT NULL,
             FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE
           )
         ''');
-      },
-      onUpgrade: (db, oldV, newV) async {
-        // aquí irán futuras migraciones
+
+        // índices útiles
+        await db.execute('CREATE INDEX idx_categories_campaign ON categories(campaign_id)');
+        await db.execute('CREATE INDEX idx_notes_campaign ON notes(campaign_id)');
+        await db.execute('CREATE INDEX idx_notes_category ON notes(category_id)');
+        await db.execute('CREATE INDEX idx_images_note ON note_images(note_id)');
+        await db.execute('CREATE INDEX idx_notes_title ON notes(title)');
       },
     );
 
-    return _instance!;
+    return _db!;
   }
 }

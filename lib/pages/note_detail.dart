@@ -1,27 +1,37 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
+import '../data/repositories/note_repo.dart';
+import '../models/note.dart';
 import 'edit_note.dart';
 
 class NoteDetailPage extends StatefulWidget {
+  final int noteId;
+  final int campaignId;
+  final int? categoryId;
   final String noteTitle;
   final String noteDescription;
   final IconData noteIcon;
   final List<String> imagePaths;
   final List<Map<String, dynamic>> allNotes;
+  final bool initialFavorite;
 
   const NoteDetailPage({
     super.key,
+    required this.noteId,
+    required this.campaignId,
+    this.categoryId,
     required this.noteTitle,
     required this.noteDescription,
     this.noteIcon = Icons.note,
     this.imagePaths = const [],
     this.allNotes = const [],
+    this.initialFavorite = false,
   });
 
   @override
@@ -29,14 +39,19 @@ class NoteDetailPage extends StatefulWidget {
 }
 
 class _NoteDetailPageState extends State<NoteDetailPage> {
-  bool _isFavorite = false;
-  late List<String> _imagePaths;
+  final _repo = NoteRepo();
   final ImagePicker _picker = ImagePicker();
+
+  late List<String> _imagePaths;
+  late bool _isFavorite;
+
+  bool get _hasValidId => widget.noteId > 0;
 
   @override
   void initState() {
     super.initState();
     _imagePaths = List.from(widget.imagePaths);
+    _isFavorite = widget.initialFavorite;
   }
 
   @override
@@ -48,15 +63,13 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: "Volver",
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, true),
         ),
         title: Row(
           children: [
             Icon(widget.noteIcon, size: 28),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(widget.noteTitle, overflow: TextOverflow.ellipsis),
-            ),
+            Expanded(child: Text(widget.noteTitle, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
@@ -72,23 +85,8 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
           ),
           IconButton(
             tooltip: _isFavorite ? "Quitar de favoritos" : "Añadir a favoritos",
-            icon: Icon(
-              _isFavorite ? Icons.star : Icons.star_border,
-              color: _isFavorite ? Colors.amber : null,
-            ),
-            onPressed: () {
-              setState(() => _isFavorite = !_isFavorite);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    _isFavorite
-                        ? "Añadido a Favoritos (mock)"
-                        : "Eliminado de Favoritos (mock)",
-                  ),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            },
+            icon: Icon(_isFavorite ? Icons.star : Icons.star_border, color: _isFavorite ? Colors.amber : null),
+            onPressed: _toggleFavorite,
           ),
         ],
       ),
@@ -98,21 +96,13 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
           children: [
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Descripción:",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    const Text("Descripción:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 8),
                     _buildLinkedDescription(context),
                   ],
@@ -120,43 +110,26 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              "Imágenes",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            const Text("Imágenes", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             if (_imagePaths.isNotEmpty)
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _imagePaths
-                    .map(
-                      (path) => ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(path),
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    )
+                    .map((path) => ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(File(path), width: 120, height: 120, fit: BoxFit.cover),
+                        ))
                     .toList(),
               )
             else
               Center(
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.image_not_supported,
-                      size: 80,
-                      color: scheme.onSurfaceVariant,
-                    ),
+                    Icon(Icons.image_not_supported, size: 80, color: scheme.onSurfaceVariant),
                     const SizedBox(height: 8),
-                    const Text(
-                      "No hay imágenes",
-                      style: TextStyle(fontSize: 14),
-                    ),
+                    const Text("No hay imágenes", style: TextStyle(fontSize: 14)),
                   ],
                 ),
               ),
@@ -171,26 +144,21 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
     );
   }
 
-  /// Permite tomar una foto con la cámara y añadirla a las imágenes de la nota.
   Future<void> _takePhoto() async {
     try {
       final picked = await _picker.pickImage(source: ImageSource.camera);
       if (picked != null) {
-        setState(() {
-          _imagePaths.add(picked.path);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Foto añadida correctamente")),
-        );
+        setState(() => _imagePaths.add(picked.path));
+        if (_hasValidId) {
+          await _repo.replaceImages(widget.noteId, _imagePaths);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Foto añadida correctamente")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al tomar foto: $e")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al tomar foto: $e")));
     }
   }
 
-  /// Genera y comparte la nota como PDF.
   Future<void> _shareAsPdf() async {
     try {
       final doc = pw.Document();
@@ -203,12 +171,7 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
           imageWidgets.add(
             pw.Container(
               margin: const pw.EdgeInsets.only(bottom: 8),
-              child: pw.ClipRRect(
-                horizontalRadius: 8,
-                verticalRadius: 8,
-                child: pw.Image(pw.MemoryImage(bytes),
-                    fit: pw.BoxFit.cover, width: double.infinity),
-              ),
+              child: pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.cover),
             ),
           );
         }
@@ -219,16 +182,12 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(24),
           build: (context) => [
-            pw.Text(widget.noteTitle,
-                style: pw.TextStyle(
-                    fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            pw.Text(widget.noteTitle, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 12),
             pw.Text(widget.noteDescription),
             if (imageWidgets.isNotEmpty) pw.SizedBox(height: 16),
             if (imageWidgets.isNotEmpty)
-              pw.Text('Imágenes:',
-                  style: pw.TextStyle(
-                      fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Imágenes:', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             if (imageWidgets.isNotEmpty) pw.SizedBox(height: 8),
             ...imageWidgets,
           ],
@@ -236,19 +195,22 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
       );
 
       final bytes = await doc.save();
-      await Printing.sharePdf(
-          bytes: bytes, filename: "${widget.noteTitle}.pdf");
+      await Printing.sharePdf(bytes: bytes, filename: "${widget.noteTitle}.pdf");
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo generar el PDF: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo generar el PDF: $e')));
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() => _isFavorite = !_isFavorite);
+    if (_hasValidId) {
+      await _repo.toggleFavorite(widget.noteId, _isFavorite);
     }
   }
 
   Widget _buildLinkedDescription(BuildContext context) {
     if (widget.allNotes.isEmpty) {
-      return Text(widget.noteDescription,
-          style: Theme.of(context).textTheme.bodyLarge);
+      return Text(widget.noteDescription, style: Theme.of(context).textTheme.bodyLarge);
     }
 
     final baseStyle = Theme.of(context).textTheme.bodyLarge;
@@ -295,33 +257,61 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
 
       matchedNote = widget.allNotes.firstWhere(
         (n) => (n["title"] as String).toLowerCase() == matchedTitle!.toLowerCase(),
-        orElse: () => {},
+        orElse: () => <String, dynamic>{},
       );
 
-      if (matchedNote.isEmpty) {
-        spans.add(TextSpan(text: matchedTitle));
-        pos = earliestIdx + matchedTitle.length;
-        continue;
+      // Mapa NO nulo para lecturas seguras
+      final Map<String, dynamic> m = matchedNote;
+
+      // Id enlazado
+      final int linkedId = (m['id'] is int) ? m['id'] as int : -1;
+
+      // Categoría opcional
+      final int? linkedCategoryId = (m['categoryId'] is int) ? m['categoryId'] as int : null;
+
+      // Icono: soporta IconData directo o codepoint int
+      IconData linkedIcon = Icons.notes;
+      if (m['icon'] is IconData) {
+        linkedIcon = m['icon'] as IconData;
+      } else if (m['icon'] is int) {
+        linkedIcon = IconData(m['icon'] as int, fontFamily: 'MaterialIcons');
       }
 
-      spans.add(TextSpan(
-        text: matchedTitle,
-        style: linkStyle,
-        recognizer: TapGestureRecognizer()
-          ..onTap = () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => NoteDetailPage(
-                  noteTitle: matchedNote!["title"] as String,
-                  noteDescription: matchedNote["description"] as String,
-                  noteIcon: matchedNote["icon"] as IconData,
-                  allNotes: widget.allNotes,
+      // Imágenes: convierte a List<String> de forma segura
+      final List<String> linkedImages = (m['images'] is List)
+          ? List<String>.from(m['images'] as List)
+          : const [];
+
+      // Favorito: admite bool o int(0/1)
+      final bool linkedFav = (m['favorite'] is bool)
+          ? m['favorite'] as bool
+          : (m['favorite'] is int ? (m['favorite'] as int) == 1 : false);
+
+      spans.add(
+        TextSpan(
+          text: matchedTitle,
+          style: linkStyle,
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NoteDetailPage(
+                    noteId: linkedId,
+                    campaignId: widget.campaignId,
+                    categoryId: linkedCategoryId,
+                    noteTitle: (m["title"] as String?) ?? 'Sin título',
+                    noteDescription: (m["description"] as String?) ?? '',
+                    noteIcon: linkedIcon,
+                    imagePaths: linkedImages,
+                    allNotes: widget.allNotes,
+                    initialFavorite: linkedFav,
+                  ),
                 ),
-              ),
-            );
-          },
-      ));
+              );
+            },
+        ),
+      );
 
       pos = earliestIdx + matchedTitle.length;
     }
@@ -330,8 +320,7 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
   }
 
   bool _hasWordBoundaries(String s, int start, int end) {
-    bool isAlphaNum(String ch) =>
-        RegExp(r'[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ]').hasMatch(ch);
+    bool isAlphaNum(String ch) => RegExp(r'[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ]').hasMatch(ch);
     final beforeOk = start == 0 || !isAlphaNum(s[start - 1]);
     final afterOk = end >= s.length || !isAlphaNum(s[end]);
     return beforeOk && afterOk;
@@ -340,9 +329,7 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
@@ -355,18 +342,25 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => EditNotePage(
-                      noteTitle: widget.noteTitle,
-                      noteContent: widget.noteDescription,
-                      noteCategory: "Historia/Sesión",
+                      note: Note(
+                        id: widget.noteId,
+                        campaignId: widget.campaignId,
+                        categoryId: widget.categoryId,
+                        title: widget.noteTitle,
+                        description: widget.noteDescription,
+                        favorite: _isFavorite,
+                        createdAt: DateTime.now().millisecondsSinceEpoch,
+                        updatedAt: DateTime.now().millisecondsSinceEpoch,
+                        images: _imagePaths,
+                      ),
                     ),
                   ),
-                );
+                ).then((_) => setState(() {}));
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text("Eliminar",
-                  style: TextStyle(color: Colors.red)),
+              title: const Text("Eliminar", style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirmation(context);
@@ -385,20 +379,19 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
         title: const Text("¿Eliminar nota?"),
         content: const Text("Esta acción no se puede deshacer."),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Nota eliminada (mock)")),
-              );
-              Navigator.pop(context);
-            },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text("Eliminar"),
+            onPressed: () async {
+              Navigator.pop(context);
+              if (_hasValidId) {
+                await _repo.deleteNote(widget.noteId);
+              }
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nota eliminada")));
+              Navigator.pop(context, true);
+            },
           ),
         ],
       ),

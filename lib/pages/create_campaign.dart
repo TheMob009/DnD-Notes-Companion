@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/repositories/campaign_repo.dart';
 
 class CreateCampaignPage extends StatefulWidget {
   const CreateCampaignPage({super.key});
@@ -8,119 +9,82 @@ class CreateCampaignPage extends StatefulWidget {
 }
 
 class _CreateCampaignPageState extends State<CreateCampaignPage> {
-  final TextEditingController _nameController = TextEditingController();
+  final _name = TextEditingController();
+  String? _edition;
+  IconData? _icon;
 
-  String? _selectedEdition;
-  IconData? _selectedIcon;
+  final _repo = CampaignRepo();
 
-  final List<String> editions = [
-    "Dungeons & Dragons 5e",
-    "Pathfinder",
-    "Call of Cthulhu",
-  ];
+  final List<String> editions = const ["Dungeons & Dragons 5e", "Pathfinder", "Call of Cthulhu"];
+  final List<IconData> icons = const [Icons.shield, Icons.map, Icons.castle, Icons.explore];
 
-  final List<IconData> campaignIcons = [
-    Icons.shield,
-    Icons.map,
-    Icons.castle,
-    Icons.explore
-  ];
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: BackButton(),
         title: const Text("Crear Campaña"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            // Nombre de campaña
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: "Nombre de la campaña",
-                prefixIcon: Icon(Icons.edit),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Dropdown de edición
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Edición",
-                prefixIcon: Icon(Icons.book),
-              ),
-              value: _selectedEdition,
-              items: editions
-                  .map((edition) =>
-                      DropdownMenuItem(value: edition, child: Text(edition)))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedEdition = value;
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            // Selección de icono
-            const Text(
-              "Selecciona un icono para la campaña:",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: campaignIcons.map((icon) {
-                final isSelected = _selectedIcon == icon;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedIcon = icon;
-                    });
-                  },
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: isSelected
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      icon,
-                      size: 28,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 40),
-
-            // Botón de guardar
-            ElevatedButton.icon(
-              onPressed: () {
-                // Aquí luego guardaremos la campaña
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Campaña creada (mock)")),
-                );
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.check),
-              label: const Text("Guardar"),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
-            ),
-          ],
-        ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: "Nombre", prefixIcon: Icon(Icons.edit)),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _edition,
+            items: editions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _edition = v),
+            decoration: const InputDecoration(labelText: "Edición", prefixIcon: Icon(Icons.book)),
+          ),
+          const SizedBox(height: 16),
+          const Text("Selecciona un icono:", style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: icons.map((ic) {
+              final selected = _icon == ic;
+              return GestureDetector(
+                onTap: () => setState(() => _icon = ic),
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: selected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(ic, color: selected ? Theme.of(context).colorScheme.primary : null),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            icon: const Icon(Icons.check),
+            label: const Text("Guardar"),
+            onPressed: () async {
+              final name = _name.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingresa un nombre")));
+                return;
+              }
+              await _repo.insertCampaign(
+                name: name,
+                edition: _edition,
+                iconCodePoint: _icon?.codePoint,
+              );
+              if (!mounted) return;
+              Navigator.pop(context, true);
+            },
+          ),
+        ],
       ),
     );
   }

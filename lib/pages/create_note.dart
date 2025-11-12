@@ -1,217 +1,135 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../data/repositories/note_repo.dart';
+import '../models/category.dart';
 
 class CreateNotePage extends StatefulWidget {
-  const CreateNotePage({super.key});
+  final int campaignId;
+  final Future<List<Category>> categoriesFuture;
+  const CreateNotePage({super.key, required this.campaignId, required this.categoriesFuture});
 
   @override
   State<CreateNotePage> createState() => _CreateNotePageState();
 }
 
 class _CreateNotePageState extends State<CreateNotePage> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _customCategoryController = TextEditingController();
+  final _title = TextEditingController();
+  final _content = TextEditingController();
+  final _picker = ImagePicker();
+  final _repo = NoteRepo();
 
-  String? _selectedCategory;
-
-  final List<String> predefinedCategories = const [
-    "Historia/Sesión",
-    "Personajes",
-    "Ciudades",
-    "Lugares",
-    "Objetos",
-    "Misiones",
-    "Personalizada",
-  ];
-
+  int? _selectedCategoryId;
   final List<File> _images = [];
-  final ImagePicker _picker = ImagePicker();
 
-  Future<void> _addImage(ImageSource source) async {
-    try {
-      final picked = await _picker.pickImage(source: source);
-      if (picked != null) {
-        setState(() => _images.add(File(picked.path)));
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("No se pudo obtener la imagen: $e")),
-      );
-    }
+  Future<void> _addImage(ImageSource src) async {
+    final picked = await _picker.pickImage(source: src);
+    if (picked != null) setState(() => _images.add(File(picked.path)));
+  }
+
+  @override
+  void dispose() { _title.dispose(); _content.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(),
+        title: const Text("Crear Nota"),
+        actions: [
+          IconButton(
+            tooltip: "Añadir imagen",
+            onPressed: () => _showImageSource(),
+            icon: const Icon(Icons.add_a_photo),
+          ),
+        ],
+      ),
+      body: FutureBuilder<List<Category>>(
+        future: widget.categoriesFuture,
+        builder: (context, snap) {
+          final categories = snap.data ?? [];
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              TextField(
+                controller: _title,
+                decoration: const InputDecoration(labelText: "Nombre de la nota", prefixIcon: Icon(Icons.edit_note)),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: _selectedCategoryId,
+                decoration: const InputDecoration(labelText: "Categoría", prefixIcon: Icon(Icons.category)),
+                items: categories
+                    .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedCategoryId = v),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _content,
+                maxLines: 8,
+                decoration: const InputDecoration(labelText: "Contenido", alignLabelWithHint: true, prefixIcon: Icon(Icons.notes)),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: OutlinedButton.icon(onPressed: () => _addImage(ImageSource.gallery), icon: const Icon(Icons.photo), label: const Text("Galería"))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(onPressed: () => _addImage(ImageSource.camera), icon: const Icon(Icons.camera_alt), label: const Text("Cámara"))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_images.isNotEmpty)
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _images.map((f) => ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(f, width: 120, height: 120, fit: BoxFit.cover),
+                  )).toList(),
+                ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check),
+                label: const Text("Guardar Nota"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: scheme.primary, foregroundColor: scheme.onPrimary,
+                ),
+                onPressed: () async {
+                  final title = _title.text.trim();
+                  final desc = _content.text.trim();
+                  if (title.isEmpty || desc.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Completa título y contenido")));
+                    return;
+                  }
+                  final id = await _repo.insertNote(
+                    campaignId: widget.campaignId,
+                    categoryId: _selectedCategoryId,
+                    title: title,
+                    description: desc,
+                    imagePaths: _images.map((e) => e.path).toList(),
+                  );
+                  if (!mounted) return;
+                  Navigator.pop(context, id > 0);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showImageSource() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(
         child: Wrap(
           children: [
-            ListTile(
-              leading: const Icon(Icons.photo),
-              title: const Text('Elegir de galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _addImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Tomar foto'),
-              onTap: () {
-                Navigator.pop(context);
-                _addImage(ImageSource.camera);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    _customCategoryController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: "Volver",
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text("Crear Nota"),
-        actions: [
-          IconButton(
-            tooltip: "Añadir imagen",
-            icon: const Icon(Icons.add_a_photo),
-            onPressed: _showImageSource,
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: "Nombre de la nota",
-                prefixIcon: Icon(Icons.edit_note),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: "Categoría",
-                prefixIcon: Icon(Icons.category),
-              ),
-              value: _selectedCategory,
-              items: predefinedCategories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedCategory = value),
-            ),
-            const SizedBox(height: 12),
-
-            if (_selectedCategory == "Personalizada")
-              TextField(
-                controller: _customCategoryController,
-                decoration: const InputDecoration(
-                  labelText: "Nombre de categoría personalizada",
-                  prefixIcon: Icon(Icons.add_circle),
-                ),
-              ),
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _contentController,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: "Contenido",
-                alignLabelWithHint: true,
-                prefixIcon: Icon(Icons.notes),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Botones rápidos también en el cuerpo
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _addImage(ImageSource.gallery),
-                    icon: const Icon(Icons.photo),
-                    label: const Text("Galería"),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _addImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text("Cámara"),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (_images.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _images
-                    .map(
-                      (file) => ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          file,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            const SizedBox(height: 24),
-
-            ElevatedButton.icon(
-              onPressed: () {
-                if ((_titleController.text).trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Agrega un título a la nota.")),
-                  );
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Nota creada (mock)")),
-                );
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.check),
-              label: const Text("Guardar Nota"),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                foregroundColor: scheme.onPrimary,
-                backgroundColor: scheme.primary,
-              ),
-            ),
+            ListTile(leading: const Icon(Icons.photo), title: const Text('Elegir de galería'), onTap: () { Navigator.pop(context); _addImage(ImageSource.gallery); }),
+            ListTile(leading: const Icon(Icons.camera_alt), title: const Text('Tomar foto'), onTap: () { Navigator.pop(context); _addImage(ImageSource.camera); }),
           ],
         ),
       ),

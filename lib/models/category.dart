@@ -1,27 +1,27 @@
 class Category {
-  final int? id;
+  final int id;
   final int campaignId;
   final String name;
   final int? iconCodePoint;
   final bool isBuiltin;
 
   Category({
-    this.id,
+    required this.id,
     required this.campaignId,
     required this.name,
     this.iconCodePoint,
-    this.isBuiltin = false,
+    required this.isBuiltin,
   });
 
-  factory Category.fromMap(Map<String, dynamic> m) => Category(
-        id: m['id'] as int?,
+  factory Category.fromMap(Map<String, Object?> m) => Category(
+        id: m['id'] as int,
         campaignId: m['campaign_id'] as int,
         name: m['name'] as String,
         iconCodePoint: m['icon_codepoint'] as int?,
         isBuiltin: (m['is_builtin'] as int) == 1,
       );
 
-  Map<String, dynamic> toMap() => {
+  Map<String, Object?> toMap() => {
         'id': id,
         'campaign_id': campaignId,
         'name': name,

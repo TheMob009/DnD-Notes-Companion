@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'note_detail.dart';
+import '../data/repositories/category_repo.dart';
+import '../data/repositories/note_repo.dart';
+import '../models/category.dart';
+import '../models/note.dart';
 import 'create_note.dart';
 import 'create_category.dart';
-import '../services/settings_controller.dart';
-import 'preferences_page.dart';
+import 'note_detail.dart';
 
 class CampaignDashboardPage extends StatefulWidget {
+  final int campaignId;
   final String campaignName;
   final IconData campaignIcon;
 
   const CampaignDashboardPage({
     super.key,
+    required this.campaignId,
     required this.campaignName,
     this.campaignIcon = Icons.shield,
   });
@@ -22,106 +24,46 @@ class CampaignDashboardPage extends StatefulWidget {
 }
 
 class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
-  bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = "";
+  final _catRepo = CategoryRepo();
+  final _noteRepo = NoteRepo();
 
-  // Mock de notas organizadas por categoría
-  final Map<String, List<Map<String, dynamic>>> notesByCategory = {
-    "Favoritos": [
-      {
-        "title": "Escudo Solar",
-        "description": "Arma legendaria contra vampiros",
-        "icon": Icons.star,
-      }
-    ],
-    "Historia/Sesión": [
-      {
-        "title": "Sesión 1",
-        "description": "Introducción a la aventura en Waterdeep",
-        "icon": Icons.menu_book
-      },
-    ],
-    "Personajes": [
-      {
-        "title": "Arthas",
-        "description": "Paladín caído en desgracia que visitó el Castillo Ravenloft",
-        "icon": Icons.person
-      },
-    ],
-    "Ciudades": [
-      {
-        "title": "Waterdeep",
-        "description": "Ciudad de los esplendores, punto de partida de la Sesión 1",
-        "icon": Icons.location_city
-      },
-    ],
-    "Lugares": [
-      {
-        "title": "Castillo Ravenloft",
-        "description": "Fortaleza de Strahd mencionada por Arthas",
-        "icon": Icons.castle
-      },
-    ],
-    "Objetos": [
-      {
-        "title": "Amuleto de Ravenkind",
-        "description": "Objeto mágico contra Strahd",
-        "icon": Icons.shield
-      },
-    ],
-    "Misiones": [
-      {
-        "title": "Derrotar a Strahd",
-        "description": "Liberar Barovia de su tiranía",
-        "icon": Icons.flag
-      },
-    ],
-  };
+  late Future<List<Category>> _futureCats;
+  late Future<List<Note>> _futureAllNotes;
+
+  bool _isSearching = false;
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _futureCats = _catRepo.getByCampaign(widget.campaignId);
+    _futureAllNotes = _noteRepo.getNotesByCampaign(widget.campaignId);
+  }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-
-    // Combinar todas las notas para búsqueda y navegación
-    final allNotes = notesByCategory.values.expand((list) => list).toList();
-
-    bool matches(Map<String, dynamic> n, String q) {
-      if (q.isEmpty) return true;
-      final title = (n["title"] as String).toLowerCase();
-      if (settings.searchInDescription) {
-        final desc = (n["description"] as String).toLowerCase();
-        return title.contains(q) || desc.contains(q);
-      }
-      return title.contains(q);
-    }
-
-    final q = _searchQuery.toLowerCase();
-    final filteredNotes = allNotes.where((n) => matches(n, q)).toList();
-    final sortedFiltered = _sortList(filteredNotes, settings.sort);
-
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: "Volver",
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const BackButton(),
         title: _isSearching
             ? TextField(
-                controller: _searchController,
+                controller: _searchCtrl,
                 autofocus: true,
                 decoration: const InputDecoration(
                   hintText: "Buscar notas...",
                   border: InputBorder.none,
                 ),
-                onChanged: (value) => setState(() => _searchQuery = value),
+                onChanged: (_) => setState(() {}),
               )
             : Row(
                 children: [
@@ -138,151 +80,138 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
-            tooltip: _isSearching ? "Cerrar búsqueda" : "Buscar Nota",
             onPressed: () {
               setState(() {
-                if (_isSearching) {
-                  _isSearching = false;
-                  _searchQuery = "";
-                  _searchController.clear();
-                } else {
-                  _isSearching = true;
-                }
+                if (_isSearching) _searchCtrl.clear();
+                _isSearching = !_isSearching;
               });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: "Preferencias",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PreferencesPage()),
-              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: "Crear Categoría",
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final created = await Navigator.push<bool>(
                 context,
-                MaterialPageRoute(builder: (_) => const CreateCategoryPage()),
+                MaterialPageRoute(
+                  builder: (_) => CreateCategoryPage(campaignId: widget.campaignId),
+                ),
               );
+              if (created == true) setState(_reload);
             },
           ),
         ],
       ),
-      body: _isSearching
-          ? _buildSearchResults(sortedFiltered, allNotes, context)
-          : _buildCategories(allNotes, context, settings.sort),
-      floatingActionButton: FloatingActionButton(
-        tooltip: "Crear Nota",
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreateNotePage()),
+      body: FutureBuilder(
+        future: Future.wait([_futureCats, _futureAllNotes]),
+        builder: (context, AsyncSnapshot<List<dynamic>> snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final categories = (snap.data?[0] as List<Category>?) ?? [];
+          final allNotes = (snap.data?[1] as List<Note>?) ?? [];
+
+          // Favoritos como categoría virtual
+          final favorites = allNotes.where((n) => n.favorite).toList();
+
+          // Búsqueda por título (si quieres incluir descripción, añade OR a n.description)
+          final q = _searchCtrl.text.trim().toLowerCase();
+          List<Note> applySearch(List<Note> list) {
+            if (q.isEmpty) return list;
+            return list.where((n) {
+              return n.title.toLowerCase().contains(q);
+              // o: return n.title.toLowerCase().contains(q) || n.description.toLowerCase().contains(q);
+            }).toList();
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(12),
+            children: [
+              ExpansionTile(
+                leading: const Icon(Icons.star, color: Colors.amber),
+                title: const Text("Favoritos", style: TextStyle(fontWeight: FontWeight.bold)),
+                children: applySearch(favorites)
+                    .map((n) => _noteTile(context, n, allNotes))
+                    .toList(),
+              ),
+              for (final cat in categories)
+                ExpansionTile(
+                  title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: cat.iconCodePoint != null
+                      ? Icon(IconData(cat.iconCodePoint!, fontFamily: 'MaterialIcons'))
+                      : null,
+                  children: applySearch(
+                    allNotes.where((n) => n.categoryId == cat.id).toList(),
+                  ).map((n) => _noteTile(context, n, allNotes)).toList(),
+                ),
+            ],
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: "Crear Nota",
         child: const Icon(Icons.note_add),
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CreateNotePage(
+                campaignId: widget.campaignId,
+                categoriesFuture: _catRepo.getByCampaign(widget.campaignId),
+              ),
+            ),
+          );
+          if (created == true) setState(_reload);
+        },
       ),
     );
   }
 
-  // Orden alfabético según preferencia
-  List<Map<String, dynamic>> _sortList(
-    List<Map<String, dynamic>> list,
-    SortOrder order,
-  ) {
-    final copy = [...list];
-    copy.sort((a, b) {
-      final at = (a["title"] as String);
-      final bt = (b["title"] as String);
-      final cmp = at.toLowerCase().compareTo(bt.toLowerCase());
-      return order == SortOrder.titleAsc ? cmp : -cmp;
-    });
-    return copy;
-  }
+  Widget _noteTile(BuildContext context, Note n, List<Note> all) {
+    return ListTile(
+      leading: const Icon(Icons.notes),
+      title: Text(n.title),
+      subtitle: Text(
+        n.description,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Icon(
+        n.favorite ? Icons.star : Icons.star_border,
+        color: n.favorite ? Colors.amber : null,
+      ),
+      onTap: () async {
+        // Preparamos el "allNotes" para los enlaces internos en la descripción
+        final List<Map<String, dynamic>> allNotesMap = all
+            .map((x) => {
+                  'id': x.id,
+                  'categoryId': x.categoryId,
+                  'title': x.title,
+                  'description': x.description,
+                  'icon': Icons.notes, // o mapea codepoint si lo guardas
+                  'images': x.images,
+                  'favorite': x.favorite,
+                })
+            .toList();
 
-  // Vista con categorías, respetando orden de notas
-  Widget _buildCategories(
-    List<Map<String, dynamic>> allNotes,
-    BuildContext context,
-    SortOrder order,
-  ) {
-    final orderedCategories = [
-      "Favoritos",
-      ...notesByCategory.keys.where((c) => c != "Favoritos")
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: orderedCategories.map((category) {
-        final notes = _sortList(notesByCategory[category] ?? [], order);
-        final isFavorites = category == "Favoritos";
-
-        return ExpansionTile(
-          leading: isFavorites ? const Icon(Icons.star, color: Colors.amber) : null,
-          title: Text(
-            category,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NoteDetailPage(
+              noteId: n.id,
+              campaignId: widget.campaignId,         
+              categoryId: n.categoryId,               
+              noteTitle: n.title,
+              noteDescription: n.description,
+              noteIcon: Icons.notes,
+              imagePaths: n.images,
+              allNotes: allNotesMap,
+              initialFavorite: n.favorite,           
+            ),
           ),
-          children: notes.map((note) {
-            return ListTile(
-              leading: Icon(note["icon"] as IconData),
-              title: Text(note["title"] as String),
-              subtitle: Text(note["description"] as String),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NoteDetailPage(
-                      noteTitle: note["title"] as String,
-                      noteDescription: note["description"] as String,
-                      noteIcon: note["icon"] as IconData,
-                      allNotes: allNotes,
-                    ),
-                  ),
-                );
-              },
-            );
-          }).toList(),
         );
-      }).toList(),
-    );
-  }
 
-  // Resultados de búsqueda, ordenados
-  Widget _buildSearchResults(
-    List<Map<String, dynamic>> notes,
-    List<Map<String, dynamic>> allNotes,
-    BuildContext context,
-  ) {
-    if (notes.isEmpty) {
-      return const Center(child: Text("No se encontraron notas."));
-    }
-    return ListView.builder(
-      itemCount: notes.length,
-      itemBuilder: (_, index) {
-        final note = notes[index];
-        return ListTile(
-          leading: Icon(note["icon"] as IconData),
-          title: Text(note["title"] as String),
-          subtitle: Text(note["description"] as String),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => NoteDetailPage(
-                  noteTitle: note["title"] as String,
-                  noteDescription: note["description"] as String,
-                  noteIcon: note["icon"] as IconData,
-                  allNotes: allNotes,
-                ),
-              ),
-            );
-          },
-        );
+        setState(_reload);
       },
     );
   }

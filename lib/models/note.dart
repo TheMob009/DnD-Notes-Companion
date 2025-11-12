@@ -1,5 +1,5 @@
 class Note {
-  final int? id;
+  final int id;
   final int campaignId;
   final int? categoryId;
   final String title;
@@ -7,22 +7,24 @@ class Note {
   final bool favorite;
   final int createdAt;
   final int updatedAt;
-  final List<String> imagePaths;
+
+  // No se persiste directo en notes; se maneja en note_images
+  final List<String> images;
 
   Note({
-    this.id,
+    required this.id,
     required this.campaignId,
-    this.categoryId,
+    required this.categoryId,
     required this.title,
     required this.description,
-    this.favorite = false,
+    required this.favorite,
     required this.createdAt,
     required this.updatedAt,
-    this.imagePaths = const [],
+    this.images = const [],
   });
 
-  factory Note.fromMap(Map<String, dynamic> m, {List<String> images = const []}) => Note(
-        id: m['id'] as int?,
+  factory Note.fromMap(Map<String, Object?> m, {List<String> images = const []}) => Note(
+        id: m['id'] as int,
         campaignId: m['campaign_id'] as int,
         categoryId: m['category_id'] as int?,
         title: m['title'] as String,
@@ -30,10 +32,10 @@ class Note {
         favorite: (m['favorite'] as int) == 1,
         createdAt: m['created_at'] as int,
         updatedAt: m['updated_at'] as int,
-        imagePaths: images,
+        images: images,
       );
 
-  Map<String, dynamic> toMap() => {
+  Map<String, Object?> toMap() => {
         'id': id,
         'campaign_id': campaignId,
         'category_id': categoryId,
@@ -53,7 +55,7 @@ class Note {
     bool? favorite,
     int? createdAt,
     int? updatedAt,
-    List<String>? imagePaths,
+    List<String>? images,
   }) {
     return Note(
       id: id ?? this.id,
@@ -64,7 +66,7 @@ class Note {
       favorite: favorite ?? this.favorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      imagePaths: imagePaths ?? this.imagePaths,
+      images: images ?? this.images,
     );
   }
 }
