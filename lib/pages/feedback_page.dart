@@ -15,6 +15,7 @@ class FeedbackPage extends StatefulWidget {
 class _FeedbackPageState extends State<FeedbackPage> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _suggestionCtrl = TextEditingController(); // comentario libre
 
   late Future<List<Question>> _futureQuestions;
   final Map<String, dynamic> _answers = {}; // id -> value
@@ -26,16 +27,46 @@ class _FeedbackPageState extends State<FeedbackPage> {
   }
 
   Future<List<Question>> _loadQuestions() async {
+    // Lee assets/questions.json con estructura:
+    // { "usabilidad": [...], "contenido": [...], "compartir": [...] }
     final raw = await rootBundle.loadString('assets/questions.json');
     final data = jsonDecode(raw) as Map<String, dynamic>;
-    final List<dynamic> list = data['questions'] as List<dynamic>;
-    return list.map((e) => Question.fromJson(e as Map<String, dynamic>)).toList();
+
+    final questions = <Question>[];
+
+    void addSection(String key) {
+      final list = data[key] as List<dynamic>?;
+      if (list == null) return;
+      for (var i = 0; i < list.length; i++) {
+        final m = list[i] as Map<String, dynamic>;
+        questions.add(
+          Question(
+            id: '${key}_${i + 1}',
+            section: key,
+            type: QuestionType.rating,
+            title: m['titulo'] as String,
+            // seguimos usando escala 1..5 (0 = sin respuesta)
+            min: 1,
+            max: 5,
+            minLabel: m['min'] as String?,
+            maxLabel: m['max'] as String?,
+          ),
+        );
+      }
+    }
+
+    addSection('usabilidad');
+    addSection('contenido');
+    addSection('compartir');
+
+    return questions;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
+    _suggestionCtrl.dispose();
     super.dispose();
   }
 
@@ -52,7 +83,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('Error al cargar preguntas: ${snap.error}'));
+            return Center(
+              child: Text('Error al cargar preguntas: ${snap.error}'),
+            );
           }
           final questions = snap.data ?? [];
 
@@ -61,7 +94,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
             children: [
               Text(
                 '¡Gracias por ayudarnos a mejorar!',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(
@@ -102,6 +138,37 @@ class _FeedbackPageState extends State<FeedbackPage> {
               ...questions.map((q) => _buildQuestionCard(q, cs)),
 
               const SizedBox(height: 16),
+
+              // Comentario libre de sugerencia
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Comentario o sugerencia (opcional)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _suggestionCtrl,
+                        minLines: 3,
+                        maxLines: 6,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Escribe aquí cualquier comentario, sugerencia o idea que quieras compartir...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
               FilledButton.icon(
                 icon: const Icon(Icons.send),
                 label: const Text('Enviar por correo'),
@@ -121,16 +188,42 @@ class _FeedbackPageState extends State<FeedbackPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(q.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              q.title,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
-            if (q.type == QuestionType.rating)
+            if (q.type == QuestionType.rating) ...[
               _RatingRow(
-                min: q.min ?? 1,
-                max: q.max ?? 5,
+                min: q.min,
+                max: q.max,
                 value: (_answers[q.id] as int?) ?? 0,
                 onChanged: (v) => setState(() => _answers[q.id] = v),
-              )
-            else
+              ),
+              if (q.minLabel != null || q.maxLabel != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (q.minLabel != null)
+                      Expanded(
+                        child: Text(
+                          q.minLabel!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    if (q.maxLabel != null)
+                      Expanded(
+                        child: Text(
+                          q.maxLabel!,
+                          textAlign: TextAlign.end,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ] else
               TextField(
                 minLines: 2,
                 maxLines: 4,
@@ -146,7 +239,6 @@ class _FeedbackPageState extends State<FeedbackPage> {
   }
 
   Future<void> _sendByEmail(List<Question> questions) async {
-    // Construir cuerpo del correo
     final b = StringBuffer();
     if (_nameCtrl.text.trim().isNotEmpty) {
       b.writeln('Nombre: ${_nameCtrl.text.trim()}');
@@ -154,9 +246,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
     if (_emailCtrl.text.trim().isNotEmpty) {
       b.writeln('Correo: ${_emailCtrl.text.trim()}');
     }
-    if (_nameCtrl.text.trim().isNotEmpty || _emailCtrl.text.trim().isNotEmpty) {
+    if (_nameCtrl.text.trim().isNotEmpty ||
+        _emailCtrl.text.trim().isNotEmpty) {
       b.writeln('');
     }
+
+    // Resumen de ratings
     b.writeln('Respuestas:');
     for (final q in questions) {
       final v = _answers[q.id];
@@ -165,6 +260,14 @@ class _FeedbackPageState extends State<FeedbackPage> {
           : v.toString();
       b.writeln('• ${q.title}');
       b.writeln('   → $valueStr');
+    }
+
+    // Comentario libre
+    final suggestion = _suggestionCtrl.text.trim();
+    if (suggestion.isNotEmpty) {
+      b.writeln('');
+      b.writeln('Comentario / sugerencia:');
+      b.writeln(suggestion);
     }
 
     final subject = 'Feedback DnD Notes Companion';
@@ -194,27 +297,22 @@ class Question {
   final String id;
   final QuestionType type;
   final String title;
-  final int? min;
-  final int? max;
+  final int min;
+  final int max;
+  final String? minLabel;
+  final String? maxLabel;
+  final String section; // usabilidad / contenido / compartir
 
   Question({
     required this.id,
     required this.type,
     required this.title,
-    this.min,
-    this.max,
+    required this.min,
+    required this.max,
+    this.minLabel,
+    this.maxLabel,
+    required this.section,
   });
-
-  factory Question.fromJson(Map<String, dynamic> json) {
-    final t = (json['type'] as String).toLowerCase().trim();
-    return Question(
-      id: json['id'] as String,
-      type: t == 'rating' ? QuestionType.rating : QuestionType.text,
-      title: json['title'] as String,
-      min: json['min'] as int?,
-      max: json['max'] as int?,
-    );
-  }
 }
 
 /// Fila de rating simple 1..5 (o el rango que venga)

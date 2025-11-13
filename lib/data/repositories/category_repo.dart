@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../models/category.dart';
 import '../db.dart';
@@ -5,14 +6,32 @@ import '../db.dart';
 class CategoryRepo {
   static const _table = 'categories';
 
-  // Categorías base + Favoritos (virtual como categoría fija de UI)
-  static const List<Map<String, dynamic>> _builtin = [
-    {'name': 'Historia/Sesión', 'icon': 0xea19}, // Icons.menu_book
-    {'name': 'Personajes', 'icon': 0xe491},      // Icons.person
-    {'name': 'Ciudades', 'icon': 0xe7f1},        // Icons.location_city
-    {'name': 'Lugares', 'icon': 0xeab3},         // Icons.castle
-    {'name': 'Objetos', 'icon': 0xe3b1},         // Icons.shield
-    {'name': 'Misiones', 'icon': 0xf052d},       // Icons.flag
+  // Categorías base (Favoritos sigue siendo virtual en la UI)
+  static final List<Map<String, dynamic>> _builtin = [
+    {
+      'name': 'Historia/Sesión',
+      'icon': Icons.menu_book.codePoint,
+    },
+    {
+      'name': 'Personajes',
+      'icon': Icons.person.codePoint, // la de personajes se mantiene
+    },
+    {
+      'name': 'Ciudades',
+      'icon': Icons.location_city.codePoint,
+    },
+    {
+      'name': 'Lugares',
+      'icon': Icons.map.codePoint,
+    },
+    {
+      'name': 'Objetos',
+      'icon': Icons.backpack.codePoint,
+    },
+    {
+      'name': 'Misiones',
+      'icon': Icons.flag.codePoint,
+    },
   ];
 
   Future<void> ensureBuiltinsForCampaign(int campaignId) async {

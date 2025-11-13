@@ -6,6 +6,7 @@ import '../models/note.dart';
 import 'create_note.dart';
 import 'create_category.dart';
 import 'note_detail.dart';
+import 'preferences_page.dart';
 
 class CampaignDashboardPage extends StatefulWidget {
   final int campaignId;
@@ -88,13 +89,26 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: "Preferencias",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PreferencesPage(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: "Crear Categoría",
             onPressed: () async {
               final created = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => CreateCategoryPage(campaignId: widget.campaignId),
+                  builder: (_) =>
+                      CreateCategoryPage(campaignId: widget.campaignId),
                 ),
               );
               if (created == true) setState(_reload);
@@ -111,16 +125,16 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
           final categories = (snap.data?[0] as List<Category>?) ?? [];
           final allNotes = (snap.data?[1] as List<Note>?) ?? [];
 
-          // Favoritos como categoría virtual
           final favorites = allNotes.where((n) => n.favorite).toList();
 
-          // Búsqueda por título (si quieres incluir descripción, añade OR a n.description)
           final q = _searchCtrl.text.trim().toLowerCase();
           List<Note> applySearch(List<Note> list) {
             if (q.isEmpty) return list;
             return list.where((n) {
               return n.title.toLowerCase().contains(q);
-              // o: return n.title.toLowerCase().contains(q) || n.description.toLowerCase().contains(q);
+              // o también descripción:
+              // return n.title.toLowerCase().contains(q) ||
+              //        n.description.toLowerCase().contains(q);
             }).toList();
           }
 
@@ -129,16 +143,27 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
             children: [
               ExpansionTile(
                 leading: const Icon(Icons.star, color: Colors.amber),
-                title: const Text("Favoritos", style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text(
+                  "Favoritos",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 children: applySearch(favorites)
                     .map((n) => _noteTile(context, n, allNotes))
                     .toList(),
               ),
               for (final cat in categories)
                 ExpansionTile(
-                  title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    cat.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   leading: cat.iconCodePoint != null
-                      ? Icon(IconData(cat.iconCodePoint!, fontFamily: 'MaterialIcons'))
+                      ? Icon(
+                          IconData(
+                            cat.iconCodePoint!,
+                            fontFamily: 'MaterialIcons',
+                          ),
+                        )
                       : null,
                   children: applySearch(
                     allNotes.where((n) => n.categoryId == cat.id).toList(),
@@ -176,22 +201,35 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Icon(
-        n.favorite ? Icons.star : Icons.star_border,
-        color: n.favorite ? Colors.amber : null,
+      trailing: IconButton(
+        tooltip:
+            n.favorite ? "Quitar de favoritos" : "Añadir a favoritos",
+        icon: Icon(
+          n.favorite ? Icons.star : Icons.star_border,
+          color: n.favorite ? Colors.amber : null,
+        ),
+        onPressed: () async {
+          final newValue = !n.favorite;
+          if (n.id > 0) {
+            await _noteRepo.toggleFavorite(n.id, newValue);
+            if (!mounted) return;
+            setState(_reload); // recarga notas para reflejar cambio
+          }
+        },
       ),
       onTap: () async {
-        // Preparamos el "allNotes" para los enlaces internos en la descripción
         final List<Map<String, dynamic>> allNotesMap = all
-            .map((x) => {
-                  'id': x.id,
-                  'categoryId': x.categoryId,
-                  'title': x.title,
-                  'description': x.description,
-                  'icon': Icons.notes, // o mapea codepoint si lo guardas
-                  'images': x.images,
-                  'favorite': x.favorite,
-                })
+            .map(
+              (x) => {
+                'id': x.id,
+                'categoryId': x.categoryId,
+                'title': x.title,
+                'description': x.description,
+                'icon': Icons.notes,
+                'images': x.images,
+                'favorite': x.favorite,
+              },
+            )
             .toList();
 
         await Navigator.push(
@@ -199,14 +237,14 @@ class _CampaignDashboardPageState extends State<CampaignDashboardPage> {
           MaterialPageRoute(
             builder: (_) => NoteDetailPage(
               noteId: n.id,
-              campaignId: widget.campaignId,         
-              categoryId: n.categoryId,               
+              campaignId: widget.campaignId,
+              categoryId: n.categoryId,
               noteTitle: n.title,
               noteDescription: n.description,
               noteIcon: Icons.notes,
               imagePaths: n.images,
               allNotes: allNotesMap,
-              initialFavorite: n.favorite,           
+              initialFavorite: n.favorite,
             ),
           ),
         );

@@ -1,4 +1,4 @@
-package com.example.lab_2
+package cl.mortega.dndnotes
 
 import io.flutter.embedding.android.FlutterActivity
 

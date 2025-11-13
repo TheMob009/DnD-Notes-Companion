@@ -15,8 +15,18 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
 
   final _repo = CampaignRepo();
 
-  final List<String> editions = const ["Dungeons & Dragons 5e", "Pathfinder", "Call of Cthulhu"];
-  final List<IconData> icons = const [Icons.shield, Icons.map, Icons.castle, Icons.explore];
+  final List<String> editions = const [
+    "Dungeons & Dragons 5e",
+    "Pathfinder",
+    "Call of Cthulhu",
+  ];
+
+  final List<IconData> icons = const [
+    Icons.shield,
+    Icons.map,
+    Icons.castle,
+    Icons.explore,
+  ];
 
   @override
   void dispose() {
@@ -28,7 +38,7 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(),
+        leading: const BackButton(),
         title: const Text("Crear Campaña"),
       ),
       body: ListView(
@@ -36,17 +46,33 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
         children: [
           TextField(
             controller: _name,
-            decoration: const InputDecoration(labelText: "Nombre", prefixIcon: Icon(Icons.edit)),
+            decoration: const InputDecoration(
+              labelText: "Nombre",
+              prefixIcon: Icon(Icons.edit),
+            ),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _edition,
-            items: editions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: editions
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e),
+                  ),
+                )
+                .toList(),
             onChanged: (v) => setState(() => _edition = v),
-            decoration: const InputDecoration(labelText: "Edición", prefixIcon: Icon(Icons.book)),
+            decoration: const InputDecoration(
+              labelText: "Edición",
+              prefixIcon: Icon(Icons.book),
+            ),
           ),
           const SizedBox(height: 16),
-          const Text("Selecciona un icono:", style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            "Selecciona un icono:",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 12,
@@ -59,8 +85,15 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
                   radius: 28,
                   backgroundColor: selected
                       ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Icon(ic, color: selected ? Theme.of(context).colorScheme.primary : null),
+                      : Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                  child: Icon(
+                    ic,
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
                 ),
               );
             }).toList(),
@@ -72,14 +105,18 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
             onPressed: () async {
               final name = _name.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingresa un nombre")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Ingresa un nombre")),
+                );
                 return;
               }
+
               await _repo.insertCampaign(
                 name: name,
                 edition: _edition,
                 iconCodePoint: _icon?.codePoint,
               );
+
               if (!mounted) return;
               Navigator.pop(context, true);
             },
