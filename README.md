@@ -32,7 +32,7 @@ Adjuntar imágenes desde galería o cámara directamente en las notas.
 **Cliente:** Flutter, AndroidSDK, image_picker, printing + pdf, provider, google_fonts
 
 ## Enlace a la presentacion
-ACTUALIZAR ENLACE
+https://youtu.be/zbpSi6GMBqg
 
 ## Diagrama
 
@@ -126,4 +126,3 @@ graph TB
     style RATE fill:#e8f5e9,stroke:#66bb6a,stroke-width:2px,color:#000
 ```
 ## Capturas de Pantalla
-IMPLEMENTAR SCREENSHOTS A TRAVES DE ASSETS LUEGO!
