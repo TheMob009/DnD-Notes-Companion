@@ -126,3 +126,7 @@ graph TB
     style RATE fill:#e8f5e9,stroke:#66bb6a,stroke-width:2px,color:#000
 ```
 ## Capturas de Pantalla
+![About](assets/about.png)
+![Campaign Notes](assets/campaign_notes.png)
+![Edit/Create](assets/edit_create.png)
+![Preferences](assets/preferences.png)
