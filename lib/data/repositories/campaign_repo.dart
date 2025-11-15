@@ -23,7 +23,6 @@ class CampaignRepo {
       },
     );
 
-    // Crear categorías built-in para la campaña recién creada
     await CategoryRepo().ensureBuiltinsForCampaign(id);
 
     return id;
@@ -39,8 +38,6 @@ class CampaignRepo {
   }
 
   /// Elimina una campaña por id.
-  /// Si tu esquema tiene claves foráneas con ON DELETE CASCADE,
-  /// también se eliminarán categorías y notas asociadas.
   Future<void> deleteCampaign(int id) async {
     final Database db = await AppDatabase.getInstance();
     await db.delete(

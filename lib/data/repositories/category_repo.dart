@@ -6,7 +6,6 @@ import '../db.dart';
 class CategoryRepo {
   static const _table = 'categories';
 
-  // Categorías base (Favoritos sigue siendo virtual en la UI)
   static final List<Map<String, dynamic>> _builtin = [
     {
       'name': 'Historia/Sesión',
@@ -14,7 +13,7 @@ class CategoryRepo {
     },
     {
       'name': 'Personajes',
-      'icon': Icons.person.codePoint, // la de personajes se mantiene
+      'icon': Icons.person.codePoint,
     },
     {
       'name': 'Ciudades',
